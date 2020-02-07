@@ -1,0 +1,17 @@
+version: "3.7"
+services:
+  db:
+    container_name: "SosBackendDatabase"
+    image: mysql
+    volumes:
+    - sos_db_data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: "backend4backend"
+      MYSQL_USER: "server"
+      MYSQL_PASSWORD: "serverPass"
+      MYSQL_DATABASE: "sosdb"
+    ports:
+    - 3306:3306
+
+volumes:
+  sos_db_data:

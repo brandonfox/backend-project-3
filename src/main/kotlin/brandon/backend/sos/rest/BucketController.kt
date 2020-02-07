@@ -1,9 +1,9 @@
 package brandon.backend.sos.rest
 
 import brandon.backend.sos.filesystem.BucketFileManager
-import brandon.backend.sos.filesystem.BucketFileManager.getBucketMetadata
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.web.servlet.error.ErrorController
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -12,7 +12,9 @@ import org.springframework.web.bind.annotation.RestController
 import java.io.IOException
 
 @RestController
-class BucketController : ErrorController{
+class BucketController @Autowired constructor(
+        val bucketManager: BucketFileManager
+): ErrorController{
 
     val logger: Logger = LoggerFactory.getLogger(this.javaClass)
 
@@ -24,7 +26,7 @@ class BucketController : ErrorController{
     @PostMapping("/{bucketName}",params = ["create"])
     fun createBucket(@PathVariable bucketName: String): ResponseEntity<String>{
         return try{
-            val json = BucketFileManager.createBucket(bucketName)
+            val json = bucketManager.createBucket(bucketName)
             logger.info("Created new bucket: $bucketName")
             ResponseEntity(json,HttpStatus.OK)
         }catch(e: IOException){
@@ -35,7 +37,7 @@ class BucketController : ErrorController{
     @DeleteMapping("/{bucketName}",params = ["delete"])
     fun deleteBucket(@PathVariable bucketName: String): ResponseEntity<String>{
         return try{
-            BucketFileManager.deleteBucket(bucketName)
+            bucketManager.deleteBucket(bucketName)
             logger.info("Deleted bucket $bucketName")
             ResponseEntity(HttpStatus.OK)
         }catch(e:IOException){
@@ -47,7 +49,7 @@ class BucketController : ErrorController{
     @GetMapping("/{bucketName}",params = ["list"])
     fun listBucket(@PathVariable bucketName: String): ResponseEntity<String>{
         return try {
-            ResponseEntity(getBucketMetadata(bucketName), HttpStatus.OK)
+            ResponseEntity(bucketManager.getBucketMetadata(bucketName), HttpStatus.OK)
         }catch(e: IOException) {
             ResponseEntity("Could not find data for $bucketName", HttpStatus.BAD_REQUEST)
         }

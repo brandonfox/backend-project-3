@@ -1,42 +1,42 @@
 package brandon.backend.sos.filesystem
 
+import brandon.backend.sos.database.entities.Bucket
+import brandon.backend.sos.database.repositories.BucketRepo
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.stereotype.Component
 import java.io.IOException
 
-object BucketFileManager : FileManager() {
+@Component
+class BucketFileManager @Autowired constructor(
+        val bucketRepo: BucketRepo
+) : FileManager() {
 
     fun createBucket(bucketName: String): String{
         val bucket = getFile(bucketName)
         if(bucket.exists()) throw IOException("Bucket $bucketName already exists")
-        else if(!bucket.mkdir()) throw IOException("Something happened while creating bucket $bucketName")
-        else{
-            val time = getEpochTimestamp()
-            val obj = object {
-                val created = time
-                val modified = time
-                val name = bucketName
-            }
-            return setBucketMetadata(bucketName, obj)
-        }
+        if(!bucket.mkdir()) throw IOException("Something happened while creating bucket $bucketName")
+        val time = getEpochTimestamp()
+        return setBucketMetadata(Bucket(bucketName,time,time))
     }
 
     fun bucketExists(bucketName: String): Boolean{
-        return getFile(bucketName).exists()
+        return bucketRepo.existsById(bucketName)
     }
 
     fun deleteBucket(bucketName: String){
         val bucket = getFile(bucketName)
-        if(!bucket.exists()) throw IOException("Bucket $bucketName does not exist")
+        if(!bucketExists(bucketName)) throw IOException("Bucket $bucketName does not exist")
         if(!bucket.deleteRecursively()) throw IOException("Something went wrong while deleting the bucket")
+        bucketRepo.deleteById(bucketName)
     }
 
-    fun setBucketMetadata(bucketName: String,data: Any): String{
-        objectMapper.writeValue(getFile("$bucketName/metadata.json"),data)
+    fun setBucketMetadata(data: Bucket): String{
+        bucketRepo.save(data)
         return objectMapper.writeValueAsString(data)
     }
     fun getBucketMetadata(bucketName: String): String{
-        val metadata = getFile("$bucketName/metadata.json")
-        if(!metadata.exists()) throw IOException("File $filePath/$bucketName/metadata.json not found")
-        else return metadata.readText()
+        if(!bucketExists(bucketName)) throw IOException("Bucket $bucketName does not exist")
+        return objectMapper.writeValueAsString(bucketRepo.findById(bucketName))
     }
 
 }
