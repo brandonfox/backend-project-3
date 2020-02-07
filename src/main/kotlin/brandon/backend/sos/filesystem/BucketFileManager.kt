@@ -36,7 +36,8 @@ class BucketFileManager @Autowired constructor(
     }
     fun getBucketMetadata(bucketName: String): String{
         if(!bucketExists(bucketName)) throw IOException("Bucket $bucketName does not exist")
-        return objectMapper.writeValueAsString(bucketRepo.findById(bucketName))
+        val bucket = bucketRepo.findById(bucketName).get()
+        return objectMapper.writeValueAsString(bucket)
     }
 
 }

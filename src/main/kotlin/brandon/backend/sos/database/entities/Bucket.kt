@@ -1,20 +1,22 @@
 package brandon.backend.sos.database.entities
 
-import javax.persistence.Entity
-import javax.persistence.Id
-import javax.persistence.OneToMany
+import com.fasterxml.jackson.annotation.JsonBackReference
+import com.fasterxml.jackson.annotation.JsonManagedReference
+import javax.persistence.*
 import javax.validation.constraints.NotNull
 
 @Entity
 class Bucket constructor(
         @Id
+        @Column(name="bucket_name")
         val name: String? = null,
         @NotNull
         val created: Long? = null,
         @NotNull
         val modified: Long? = null,
-        @OneToMany
-        val objects: Set<FileObject> = HashSet()
+        @OneToMany(mappedBy = "bucket" ,cascade = [CascadeType.ALL])
+        @JsonManagedReference
+        var objects: Set<FileObject> = HashSet()
 ) {
 
 

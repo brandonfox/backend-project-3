@@ -1,6 +1,7 @@
 package brandon.backend.sos.filesystem
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.SerializationFeature
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -11,11 +12,11 @@ import java.time.ZoneOffset
 abstract class FileManager {
 
     companion object{
-        private val logger: Logger = LoggerFactory.getLogger(this.javaClass);
+        private val logger: Logger = LoggerFactory.getLogger(this::class.java);
 
         val filePath: String = System.getenv("FILE_STORE_PATH") ?: "./sosbackend"
 
-        val objectMapper = ObjectMapper()
+        val objectMapper: ObjectMapper = ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT)
 
         fun getEpochTimestamp(): Long{
             return LocalDateTime.now().toEpochSecond(ZoneOffset.UTC)

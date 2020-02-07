@@ -51,7 +51,7 @@ class BucketController @Autowired constructor(
         return try {
             ResponseEntity(bucketManager.getBucketMetadata(bucketName), HttpStatus.OK)
         }catch(e: IOException) {
-            ResponseEntity("Could not find data for $bucketName", HttpStatus.BAD_REQUEST)
+            ResponseEntity(e.message, HttpStatus.BAD_REQUEST)
         }
     }
 
