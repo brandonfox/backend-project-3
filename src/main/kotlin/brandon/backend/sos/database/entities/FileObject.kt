@@ -1,7 +1,7 @@
 package brandon.backend.sos.database.entities
 
 import com.fasterxml.jackson.annotation.JsonBackReference
-import com.fasterxml.jackson.annotation.JsonManagedReference
+import java.io.Serializable
 import javax.persistence.*
 import javax.validation.constraints.NotNull
 
@@ -21,10 +21,10 @@ class FileObject constructor(
         @JsonBackReference
         var bucket: Bucket? = null,
         @NotNull
-        val uploaded: Boolean = false,
+        val parts: Int = 0,
         @NotNull
-        val parts: Int = 0
-) {
+        val length: Long = 0
+) : Serializable {
         @Id
         @GeneratedValue(strategy = GenerationType.AUTO)
         val uuid: Long? = null

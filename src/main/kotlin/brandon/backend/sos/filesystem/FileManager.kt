@@ -12,7 +12,7 @@ import java.time.ZoneOffset
 abstract class FileManager {
 
     companion object{
-        private val logger: Logger = LoggerFactory.getLogger(this::class.java);
+        val logger: Logger = LoggerFactory.getLogger(this::class.java);
 
         val filePath: String = System.getenv("FILE_STORE_PATH") ?: "./sosbackend"
 
