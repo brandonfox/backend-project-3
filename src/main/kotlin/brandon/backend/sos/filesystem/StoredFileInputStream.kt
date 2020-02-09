@@ -12,6 +12,12 @@ class StoredFileInputStream constructor(
 
     var currentFile: FileInputStream? = null
 
+    override fun available(): Int {
+        return if(currentFile == null && !inputStreams.hasNext()) 0
+        else if(currentFile != null) currentFile!!.available()
+        else 1
+    }
+
     override fun read(): Int {
         if(currentFile==null && !inputStreams.hasNext()) return -1
         else if(currentFile == null){
