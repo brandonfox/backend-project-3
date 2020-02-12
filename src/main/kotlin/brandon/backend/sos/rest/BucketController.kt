@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController
 import java.io.IOException
 
 @RestController
+@RequestMapping("/{bucketName}")
 class BucketController @Autowired constructor(
         val bucketManager: BucketFileManager
 ): ErrorController{
@@ -23,7 +24,7 @@ class BucketController @Autowired constructor(
         return "Oops you weren't supposed to do that"
     }
 
-    @PostMapping("/{bucketName}",params = ["create"])
+    @PostMapping(params = ["create"])
     fun createBucket(@PathVariable bucketName: String): ResponseEntity<String>{
         return try{
             val json = bucketManager.createBucket(bucketName)
@@ -34,7 +35,7 @@ class BucketController @Autowired constructor(
         }
     }
 
-    @DeleteMapping("/{bucketName}",params = ["delete"])
+    @DeleteMapping(params = ["delete"])
     fun deleteBucket(@PathVariable bucketName: String): ResponseEntity<String>{
         return try{
             bucketManager.deleteBucket(bucketName)
@@ -46,7 +47,7 @@ class BucketController @Autowired constructor(
 
     }
 
-    @GetMapping("/{bucketName}",params = ["list"])
+    @GetMapping(params = ["list"])
     fun listBucket(@PathVariable bucketName: String): ResponseEntity<String>{
         return try {
             ResponseEntity(bucketManager.getBucketMetadata(bucketName), HttpStatus.OK)

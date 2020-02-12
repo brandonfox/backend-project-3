@@ -5,14 +5,20 @@ import brandon.backend.sos.database.repositories.BucketRepo
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Component
 import java.io.IOException
+import java.lang.IllegalArgumentException
 
 @Component
 class BucketFileManager @Autowired constructor(
         val bucketRepo: BucketRepo
 ) : FileManager() {
 
+    private fun bucketNameValid(bucketName: String): Boolean {
+        return bucketName.matches("^[a-zA-Z0-9_\\-]*$".toRegex())
+    }
+
     fun createBucket(bucketName: String): String{
         val bucket = getFile(bucketName)
+        if(!bucketNameValid(bucketName)) throw IllegalArgumentException("$bucketName is an invalid name. Name must be alphanumeric or contain underscore or hyphens")
         if(bucket.exists()) throw IOException("Bucket $bucketName already exists")
         if(!bucket.mkdir()) throw IOException("Something happened while creating bucket $bucketName")
         val time = getEpochTimestamp()
