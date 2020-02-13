@@ -2,6 +2,7 @@ package brandon.backend.sos.rest
 
 import brandon.backend.sos.filesystem.ObjectFileManager
 import brandon.backend.sos.filesystem.UploadTicketManager
+import brandon.backend.sos.filesystem.errors.MetadataNotFoundException
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
@@ -17,11 +18,10 @@ class ObjectController @Autowired constructor(
         val ticketManager: UploadTicketManager
 ) {
 
-    private val logger: Logger = LoggerFactory.getLogger(this.javaClass)
-
     @PostMapping(params = ["create"])
     fun createUploadTicket(@PathVariable bucketName: String, @PathVariable objectName: String): ResponseEntity<String>{
         return try{
+            if(!ObjectFileManager.objectNameIsValid(objectName)) throw IOException("Object name is invalid")
             ticketManager.createUploadTicket(bucketName,objectName)
             ResponseEntity(HttpStatus.OK)
         }
@@ -45,6 +45,53 @@ class ObjectController @Autowired constructor(
         //TODO Check to see if bucketname-objectname is valid
         objectManager.deleteObject(bucketName,objectName)
         return ResponseEntity(HttpStatus.OK)
+    }
+
+    @PutMapping(params=["metadata","key"])
+    fun putMetadataKey(@PathVariable bucketName: String, @PathVariable objectName: String, @RequestParam key: String, @RequestBody metadata: String): ResponseEntity<String>{
+        return try {
+            objectManager.setMetaData(bucketName, objectName, key, metadata)
+            ResponseEntity(HttpStatus.OK)
+        }catch(e: Exception){
+            ResponseEntity(e.message,HttpStatus.NOT_FOUND)
+        }
+    }
+
+    @DeleteMapping(params=["metadata","key"])
+    fun deleteMetadataKey(@PathVariable bucketName: String, @PathVariable objectName: String, @RequestParam key: String): ResponseEntity<String>{
+        return try{
+            objectManager.deleteMetadataByKey(bucketName, objectName, key)
+            ResponseEntity(HttpStatus.OK)
+        }catch(e: Exception){
+            ResponseEntity(e.message,HttpStatus.NOT_FOUND)
+        }
+    }
+
+    @GetMapping(params=["metadata","key"])
+    fun getMetadataByKey(@PathVariable bucketName: String, @PathVariable objectName: String, @RequestParam key: String): ResponseEntity<Any>{
+        return try{
+            val data = objectManager.getMetadataKey(bucketName, objectName, key)
+            ResponseEntity(data,HttpStatus.OK)
+        }catch(e: MetadataNotFoundException){
+            ResponseEntity("{}",HttpStatus.OK)
+        }
+        catch(e: Exception){
+            ResponseEntity(e.message,HttpStatus.NOT_FOUND)
+        }
+    }
+
+    @GetMapping(params=["metadata"])
+    fun getAllMetadata(@PathVariable bucketName: String, @PathVariable objectName: String): ResponseEntity<Any> {
+        return try{
+            val jsonData = objectManager.getAllMetadataJson(bucketName, objectName)
+            ResponseEntity(jsonData,HttpStatus.OK)
+        }
+        catch(e: MetadataNotFoundException){
+            ResponseEntity("{}",HttpStatus.OK)
+        }
+        catch(e: Exception){
+            ResponseEntity(e.message,HttpStatus.NOT_FOUND)
+        }
     }
 
 }
