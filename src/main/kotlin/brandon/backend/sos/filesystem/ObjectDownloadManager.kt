@@ -2,7 +2,7 @@ package brandon.backend.sos.filesystem
 
 import brandon.backend.sos.database.entities.FilePart
 import brandon.backend.sos.database.repositories.FilePartRepo
-import brandon.backend.sos.filesystem.IO.StoredFileInputStream
+import brandon.backend.sos.filesystem.io.StoredFileInputStream
 import brandon.backend.sos.rest.async.AsyncController
 import brandon.backend.sos.rest.async.DownloadRequest
 import brandon.backend.sos.rest.async.UploadRequest

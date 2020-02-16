@@ -39,8 +39,9 @@ object AsyncController {
                 try {
                     if (nextReq.hasMoreData()) {
                         nextReq.writeData(nextReq.readData())
-                        asyncThreadRequests[threadId]!!.add(nextReq)
+                        asyncThreadRequests[threadId]!!.put(nextReq)
                     } else {
+                        logger.info("Completed a request ${nextReq.javaClass}")
                         nextReq.completeRequest(HttpStatus.OK)
                     }
                 }catch(e: Exception){

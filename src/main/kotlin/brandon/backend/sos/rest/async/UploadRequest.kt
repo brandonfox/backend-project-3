@@ -14,7 +14,7 @@ import java.io.InputStream
 
 class UploadRequest constructor(
         private val input: InputStream,
-        private val file: File,
+        file: File,
         private val fileTicketManager: UploadTicketManager,
         private val ticket: FileUploadTicket,
         private val partName: String,
@@ -28,6 +28,8 @@ class UploadRequest constructor(
 
     private val logger = LoggerFactory.getLogger("Upload request: $partName")
 
+    private val fileStream = file.outputStream()
+
     override fun hasMoreData(): Boolean {
         return input.available() > 0
     }
@@ -39,7 +41,7 @@ class UploadRequest constructor(
     }
 
     override fun writeData(data: ByteArray) {
-        file.writeBytes(data)
+        fileStream.write(data)
     }
 
     override fun completeRequest(status: HttpStatus) {
