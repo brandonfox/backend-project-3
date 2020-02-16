@@ -9,4 +9,5 @@ import java.util.*
 interface FileTicketRepo : JpaRepository<FileUploadTicket,Long> {
     fun existsByBucketNameNameAndName(bucketName: String, objectName: String): Boolean
     fun getByBucketNameNameAndName(bucketName: String,objectName: String): Optional<FileUploadTicket>
+    fun getAllByBucketNameName(bucketName: String): List<FileUploadTicket>
 }

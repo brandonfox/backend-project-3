@@ -24,6 +24,11 @@ abstract class FileManager {
         fun getFile(path: String): File{
             return File("$filePath/$path")
         }
+        fun getUploadFile(bucketName: String, objectName: String,path: String = ""): File {
+            val dot = objectName.lastIndexOf('.')
+            return if(dot < 0) File("$filePath/$bucketName/.$objectName$path")
+            else File("$filePath/$bucketName/.${objectName.substring(0,dot)}-${objectName.substring(dot)}$path")
+        }
         init {
             logger.info("File path set to $filePath")
             val fileDir = File(filePath)

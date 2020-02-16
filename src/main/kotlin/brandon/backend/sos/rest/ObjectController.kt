@@ -1,5 +1,6 @@
 package brandon.backend.sos.rest
 
+import brandon.backend.sos.filesystem.BucketFileManager
 import brandon.backend.sos.filesystem.ObjectFileManager
 import brandon.backend.sos.filesystem.UploadTicketManager
 import brandon.backend.sos.filesystem.errors.MetadataNotFoundException
@@ -43,7 +44,9 @@ class ObjectController @Autowired constructor(
     @DeleteMapping(params=["delete"])
     fun deleteObject(@PathVariable bucketName: String, @PathVariable objectName: String): ResponseEntity<String>{
         //TODO Check to see if bucketname-objectname is valid
+        if(!(BucketFileManager.bucketNameValid(bucketName) && ObjectFileManager.objectNameIsValid(objectName))) return ResponseEntity(HttpStatus.BAD_REQUEST)
         objectManager.deleteObject(bucketName,objectName)
+        ticketManager.deleteTicket(bucketName, objectName)
         return ResponseEntity(HttpStatus.OK)
     }
 

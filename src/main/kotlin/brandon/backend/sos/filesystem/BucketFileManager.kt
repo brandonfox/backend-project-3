@@ -9,11 +9,14 @@ import java.lang.IllegalArgumentException
 
 @Component
 class BucketFileManager @Autowired constructor(
-        val bucketRepo: BucketRepo
+        val bucketRepo: BucketRepo,
+        val ticketManager: UploadTicketManager
 ) : FileManager() {
 
-    private fun bucketNameValid(bucketName: String): Boolean {
-        return bucketName.matches("^[a-zA-Z0-9_\\-]*$".toRegex())
+    companion object{
+        fun bucketNameValid(bucketName: String): Boolean {
+            return bucketName.matches("^[a-zA-Z0-9_\\-]*$".toRegex())
+        }
     }
 
     fun createBucket(bucketName: String): String{
@@ -33,6 +36,7 @@ class BucketFileManager @Autowired constructor(
         val bucket = getFile(bucketName)
         if(!bucketExists(bucketName)) throw IOException("Bucket $bucketName does not exist")
         if(!bucket.deleteRecursively()) throw IOException("Something went wrong while deleting the bucket")
+        ticketManager.deleteAllTickets(bucketName)
         bucketRepo.deleteById(bucketName)
     }
 

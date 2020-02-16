@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
+import org.springframework.web.context.request.async.DeferredResult
 import org.springframework.web.multipart.MultipartFile
 import java.io.IOException
 import javax.servlet.http.HttpServletResponse
@@ -28,17 +29,13 @@ class UploadDownloadController @Autowired constructor(
                    @RequestParam partNumber: Int,
                    @RequestHeader("Content-Length") contentLength: Long,
                    @RequestHeader("Content-MD5") md5: String,
-                   @RequestParam("file") file: MultipartFile): ResponseEntity<Any> {
-        if(partNumber  !in 10001 downTo 0) return ResponseEntity("Invalid part number", HttpStatus.BAD_REQUEST)
+                   @RequestParam("file") file: MultipartFile): DeferredResult<ResponseEntity<Any>> {
+        val deferredResult = DeferredResult<ResponseEntity<Any>>()
         return try{
+            if(partNumber !in 10001 downTo 0) throw Exception("Invalid part number")
             logger.info("Got request to put part $partNumber into $bucketName/$objectName: Content size ${contentLength/1000}KB, MD5 $md5")
-            downloadManager.putPart(bucketName,objectName,partNumber,file,md5,contentLength)
-            val retObj = object{
-                val md5 = md5
-                val length = contentLength
-                val partNumber = partNumber
-            }
-            ResponseEntity(retObj, HttpStatus.OK)
+            downloadManager.putPart(bucketName,objectName,partNumber,file,md5,contentLength,deferredResult)
+            return deferredResult
         }
         catch(e: IOException){
             val retObj = object{
@@ -47,26 +44,27 @@ class UploadDownloadController @Autowired constructor(
                 val partNumber = partNumber
                 val error = e.message
             }
-            ResponseEntity(retObj, HttpStatus.BAD_REQUEST)
+            deferredResult.setResult(ResponseEntity(retObj,HttpStatus.BAD_REQUEST))
+            deferredResult
         }
     }
 
-    //TODO Convert download and upload to async methods (Not threaded)
     @GetMapping
-    fun downloadObject(@PathVariable objectName: String, @PathVariable bucketName: String, response: HttpServletResponse): ResponseEntity<Any>{
-        response.setHeader("Content-Disposition","attachment; filename=$objectName")
-        response.setContentLengthLong(objectManager.getObjectFileSize(bucketName, objectName))
-        response.contentType = MediaType.APPLICATION_OCTET_STREAM_VALUE
-        val outputStream = response.outputStream
-        val inputStream = downloadManager.downloadObject(bucketName, objectName)
-        while(inputStream.available() > 0){
-            val buffer = ByteArray(1024 * 8)
-            inputStream.read(buffer)
-            outputStream.write(buffer)
+    fun downloadObject(@PathVariable objectName: String, @PathVariable bucketName: String, @RequestHeader(required = false) range:String? = null,  response: HttpServletResponse): DeferredResult<ResponseEntity<Any>>{
+        logger.info("Got request to download file $bucketName/$objectName")
+        val future = DeferredResult<ResponseEntity<Any>>()
+        return try {
+            response.setHeader("Content-Disposition", "attachment; filename=$objectName")
+            response.setContentLengthLong(objectManager.getObjectFileSize(bucketName, objectName))
+            response.contentType = MediaType.APPLICATION_OCTET_STREAM_VALUE
+            val outputStream = response.outputStream
+            downloadManager.downloadToStream(bucketName, objectName, outputStream, future)
+            future
         }
-        outputStream.flush()
-        outputStream.close()
-        return ResponseEntity(HttpStatus.OK)
+        catch(e: Exception){
+            future.setResult(ResponseEntity(HttpStatus.NOT_FOUND))
+            future
+        }
     }
 
     @DeleteMapping(params = ["{partNumber}"])

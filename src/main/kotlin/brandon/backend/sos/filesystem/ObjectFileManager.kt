@@ -9,6 +9,7 @@ import brandon.backend.sos.filesystem.errors.MetadataNotFoundException
 import javassist.NotFoundException
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Component
+import java.io.File
 import java.io.IOException
 
 @Component
@@ -71,7 +72,10 @@ class ObjectFileManager @Autowired constructor(
     fun deleteObject(bucketName: String,objectName: String){
         val obj = objectRepo.getByBucketNameAndName(bucketName, objectName)
         logger.info("Deleting object $bucketName/$objectName")
-        if(obj.isPresent) objectRepo.delete(obj.get())
+        if(obj.isPresent){
+            objectRepo.delete(obj.get())
+            getUploadFile(bucketName, objectName).deleteRecursively()
+        }
     }
 
 }

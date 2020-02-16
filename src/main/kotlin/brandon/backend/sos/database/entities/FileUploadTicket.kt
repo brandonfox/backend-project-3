@@ -12,10 +12,14 @@ class FileUploadTicket constructor(
         val bucketName: Bucket? = null,
         @NotNull
         var noParts: Int = 0
+
 ) {
 
     @Id
     @GeneratedValue
     val ticketId: Long? = null
+
+    @OneToMany(cascade = [CascadeType.ALL])
+    var parts: Set<FilePart> = HashSet()
 
 }
