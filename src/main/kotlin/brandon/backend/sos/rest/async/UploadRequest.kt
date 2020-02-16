@@ -35,6 +35,7 @@ class UploadRequest constructor(
     }
 
     override fun readData(): ByteArray {
+        val byteArray = ByteArray(bufferSize)
         input.read(byteArray)
         md5.digest(byteArray)
         return byteArray

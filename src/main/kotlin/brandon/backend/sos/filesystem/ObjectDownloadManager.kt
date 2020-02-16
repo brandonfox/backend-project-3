@@ -50,9 +50,9 @@ class ObjectDownloadManager @Autowired constructor(
         return StoredFileInputStream(filePaths)
     }
 
-    fun downloadToStream(bucketName: String, objectName: String, stream: OutputStream, future: DeferredResult<ResponseEntity<Any>>){
+    fun downloadToStream(bucketName: String, objectName: String, stream: OutputStream, future: DeferredResult<ResponseEntity<Any>>, range: String? = null){
         val inputStream = downloadObject(bucketName, objectName)
-        val request = DownloadRequest(inputStream,stream,future)
+        val request = DownloadRequest(inputStream,stream,future,range)
         AsyncController.addRequest(request)
     }
 

@@ -45,7 +45,7 @@ object AsyncController {
                         nextReq.completeRequest(HttpStatus.OK)
                     }
                 }catch(e: Exception){
-
+                    logger.info("Request closed with status: ${e.message}")
                 }
             }
         }

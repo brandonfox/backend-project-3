@@ -58,7 +58,7 @@ class UploadDownloadController @Autowired constructor(
             response.setContentLengthLong(objectManager.getObjectFileSize(bucketName, objectName))
             response.contentType = MediaType.APPLICATION_OCTET_STREAM_VALUE
             val outputStream = response.outputStream
-            downloadManager.downloadToStream(bucketName, objectName, outputStream, future)
+            downloadManager.downloadToStream(bucketName, objectName, outputStream, future,range)
             future
         }
         catch(e: Exception){

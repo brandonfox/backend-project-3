@@ -2,9 +2,7 @@ package brandon.backend.sos.rest.async
 
 import org.springframework.http.HttpStatus
 
-abstract class Request constructor(bufferSize: Int = 20000) {
-
-    val byteArray = ByteArray(bufferSize)
+abstract class Request constructor(val bufferSize: Int = 20000) {
 
     abstract fun hasMoreData(): Boolean
     abstract fun readData(): ByteArray
