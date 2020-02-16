@@ -9,7 +9,6 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.bind.annotation.RestController
-import java.io.IOException
 
 @RestController
 @RequestMapping("/{bucketName}")
@@ -30,7 +29,7 @@ class BucketController @Autowired constructor(
             val json = bucketManager.createBucket(bucketName)
             logger.info("Created new bucket: $bucketName")
             ResponseEntity(json,HttpStatus.OK)
-        }catch(e: IOException){
+        }catch(e: Exception){
             ResponseEntity(e.message,HttpStatus.BAD_REQUEST)
         }
     }
@@ -41,7 +40,7 @@ class BucketController @Autowired constructor(
             bucketManager.deleteBucket(bucketName)
             logger.info("Deleted bucket $bucketName")
             ResponseEntity(HttpStatus.OK)
-        }catch(e:IOException){
+        }catch(e:Exception){
             ResponseEntity(e.message,HttpStatus.BAD_REQUEST)
         }
 
@@ -51,7 +50,7 @@ class BucketController @Autowired constructor(
     fun listBucket(@PathVariable bucketName: String): ResponseEntity<String>{
         return try {
             ResponseEntity(bucketManager.getBucketMetadata(bucketName), HttpStatus.OK)
-        }catch(e: IOException) {
+        }catch(e: Exception) {
             ResponseEntity(e.message, HttpStatus.BAD_REQUEST)
         }
     }

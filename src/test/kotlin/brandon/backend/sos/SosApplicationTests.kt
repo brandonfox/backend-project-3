@@ -33,16 +33,20 @@ class SosApplicationTests {
 	fun bucketTest() {
 
 		try {
-			createBucket()
+			createBucket("test")
 		}
 		catch(e:Exception){
 			assert(false) { "Could not create bucket, ${e.message}" }
 		}
 		try {
-			createBucket()
+			createBucket("test")
 			assert(false) { "Should not be able to create bucket" }
 		}catch(e:Exception){
-			assert(true) { "Tried to create bucket return error message" }
+		}
+		try {
+			createBucket(".test")
+			assert(false) { "Should not be able to create bucket" }
+		}catch(e:Exception){
 		}
 
 		try{
@@ -51,32 +55,42 @@ class SosApplicationTests {
 			assert(listReq.contains("\"name\"\\s*:\\s*\"test\"".toRegex()))
 		}
 		catch(e:Exception){
-
+			assert(false)
 		}
 
 		try {
 			val deleteBucket = sendRequest("DELETE", "/test?delete")
 			println(deleteBucket)
-			assert(true)
 		}catch(e: Exception){
 			assert(false)
 		}
 	}
 
-	fun createBucket(){
-		val createResp = sendRequest("POST", "/test?create")
+	fun createBucket(bucketName: String){
+		val createResp = sendRequest("POST", "/${bucketName}?create")
 		println(createResp)
-		assert(createResp.contains("\"name\"\\s*:\\s*\"test\"".toRegex()))
+		assert(createResp.contains("\"name\"\\s*:\\s*\"${bucketName}\"".toRegex()))
 	}
 
 	@Test
 	fun ticketTest(){
-		createBucket()
+		createBucket("test")
 
 		try{
 			val createTicket = sendRequest("POST","/test/test.pdf?create")
-			assert(true)
-		}catch(e: Exception){assert(false)}
+		}catch(e: Exception){assert(false) { "Should be able to create a ticket" }}
+		try{
+			val createTicket = sendRequest("POST","/test/test.pdf?create")
+			assert(false){ "Shouldn't be able to create a duplicate ticket" }
+		}catch(e: Exception){}
+		try{
+			val createTicket = sendRequest("POST","/test121/test.pdf?create")
+			assert(false) { "Shouldn't be able to create a ticket for an object that doesn't exist" }
+		}catch(e: Exception){}
+		try{
+			val createTicket = sendRequest("POST","/test/.test.pdf.?create")
+			assert(false) { "Shouldn't be able to create a ticket for an invalid object name" }
+		}catch(e: Exception){}
 
 		val file1 = File("src/main/resources/xaa")
 		val file2 = File("src/main/resources/xab")
@@ -90,6 +104,11 @@ class SosApplicationTests {
 		}catch(e: Exception){
 			assert(false){"Shouldve been able to complete ticket: ${e.message}"}
 		}
+		try{
+			val buckets = sendRequest("GET","/test?list")
+			assert(buckets.contains("test.pdf"))
+		}
+		catch(e: Exception){assert(false){"Should be able to retrieve bucket 'test'"}}
 	}
 
 	fun getMd5(file: File): String{

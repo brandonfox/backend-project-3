@@ -11,7 +11,6 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.context.request.async.DeferredResult
 import org.springframework.web.multipart.MultipartFile
-import java.io.IOException
 import javax.servlet.http.HttpServletResponse
 
 @RestController
@@ -45,7 +44,7 @@ class UploadDownloadController @Autowired constructor(
             downloadManager.putPart(bucketName,objectName,partNumber,file,md5,contentLength,deferredResult)
             return deferredResult
         }
-        catch(e: IOException){
+        catch(e: Exception){
             val retObj = object{
                 val md5 = md5
                 val length = contentLength

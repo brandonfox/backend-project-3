@@ -4,13 +4,11 @@ import brandon.backend.sos.filesystem.BucketFileManager
 import brandon.backend.sos.filesystem.ObjectFileManager
 import brandon.backend.sos.filesystem.UploadTicketManager
 import brandon.backend.sos.filesystem.errors.MetadataNotFoundException
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.*
 import org.springframework.web.bind.annotation.*
 import java.io.IOException
-import java.lang.Exception
+import kotlin.Exception
 
 @RestController
 @RequestMapping("/{bucketName}/{objectName}")
@@ -26,8 +24,8 @@ class ObjectController @Autowired constructor(
             ticketManager.createUploadTicket(bucketName,objectName)
             ResponseEntity(HttpStatus.OK)
         }
-        catch (e: IOException){
-            ResponseEntity(e.message,HttpStatus.OK)
+        catch (e: Exception){
+            ResponseEntity(e.message,HttpStatus.BAD_REQUEST)
         }
     }
 
