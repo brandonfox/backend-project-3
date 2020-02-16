@@ -23,6 +23,14 @@ class UploadDownloadController @Autowired constructor(
 
     private val logger: Logger = LoggerFactory.getLogger(this.javaClass)
 
+    private fun getRangeContentSize(range: String): Int{
+        val unit = range.substringBefore('=')
+        if(unit != "bytes") throw Exception("Range unit must be bytes")
+        val start = range.substringAfter('=').substringBefore('-').toInt()
+        val end = range.substringAfter('-').toInt()
+        return end - start
+    }
+
     @PutMapping(params = ["partNumber"])
     fun uploadPart(@PathVariable bucketName: String,
                    @PathVariable objectName: String,
@@ -55,7 +63,10 @@ class UploadDownloadController @Autowired constructor(
         val future = DeferredResult<ResponseEntity<Any>>()
         return try {
             response.setHeader("Content-Disposition", "attachment; filename=$objectName")
-            response.setContentLengthLong(objectManager.getObjectFileSize(bucketName, objectName))
+            if(range != null)
+                response.setContentLength(getRangeContentSize(range))
+            else
+                response.setContentLengthLong(objectManager.getObjectFileSize(bucketName, objectName))
             response.contentType = MediaType.APPLICATION_OCTET_STREAM_VALUE
             val outputStream = response.outputStream
             downloadManager.downloadToStream(bucketName, objectName, outputStream, future,range)
