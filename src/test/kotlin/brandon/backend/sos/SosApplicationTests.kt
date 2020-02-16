@@ -101,7 +101,22 @@ class SosApplicationTests {
 		val file2 = File("src/main/resources/xab")
 		createObject("test","test.pdf",true,file1,file2)
 		putMetadata("test","test.pdf","origin","Spring JUnit test")
-
+		sendRequest("GET","/test/test.pdf?metadata",true,"Should be able to retrieve metadata",{ it.contains("\"origin\"\\s*:\\s*\"Spring JUnit test\"".toRegex())})
+		putMetadata("test","test.pdf","second","waow")
+		sendRequest("GET","/test/test.pdf?metadata",true,"Should contain 2 metadata fields",{
+			it.contains("\"origin\"\\s*:\\s*\"Spring JUnit test\"".toRegex())
+					&& it.contains("\"second\"\\s*:\\s*\"waow\"".toRegex())
+		})
+		sendRequest("GET","/test/test.pdf?metadata&key=origin",true,"Should only contain origin field",{
+			it.contains("\"origin\"\\s*:\\s*\"Spring JUnit test\"".toRegex())
+					&& !it.contains("\"second\"\\s*:\\s*\"waow\"".toRegex())
+		})
+		sendRequest("DELETE","/test/test.pdf?metadata&key=second",true,"Should be able to delete metadata")
+		sendRequest("GET","/test/test.pdf?metadata",true,"Should only contain origin field",{
+			println(it)
+			it.contains("\"origin\"\\s*:\\s*\"Spring JUnit test\"".toRegex())
+					&& !it.contains("\"second\"\\s*:\\s*\"waow\"".toRegex())
+		})
 	}
 
 	fun downloadFile(bucketName: String,objectName: String,file: File){

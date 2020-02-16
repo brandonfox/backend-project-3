@@ -77,6 +77,7 @@ class ObjectFileManager @Autowired constructor(
         fileObject.metadata.forEach {
             if(it.metadataKey == key){
                 fileObject.metadata = fileObject.metadata.minus(it)
+                objectRepo.saveAndFlush(fileObject)
                 return
             }
         }
