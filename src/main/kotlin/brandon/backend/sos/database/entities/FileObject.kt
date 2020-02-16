@@ -23,7 +23,10 @@ class FileObject constructor(
         @NotNull
         val parts: Int = 0,
         @NotNull
-        val length: Long = 0
+        val length: Long = 0,
+        @OneToMany(cascade = [CascadeType.ALL])
+        @JsonBackReference
+        var metadata: Set<ObjectMetadataPair> = HashSet()
 ) : Serializable {
         @Id
         @GeneratedValue(strategy = GenerationType.AUTO)

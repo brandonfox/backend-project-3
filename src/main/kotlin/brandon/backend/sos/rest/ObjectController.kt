@@ -4,6 +4,8 @@ import brandon.backend.sos.filesystem.BucketFileManager
 import brandon.backend.sos.filesystem.ObjectFileManager
 import brandon.backend.sos.filesystem.UploadTicketManager
 import brandon.backend.sos.filesystem.errors.MetadataNotFoundException
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.*
 import org.springframework.web.bind.annotation.*
@@ -16,6 +18,8 @@ class ObjectController @Autowired constructor(
         val objectManager: ObjectFileManager,
         val ticketManager: UploadTicketManager
 ) {
+
+    val logger: Logger = LoggerFactory.getLogger(this.javaClass)
 
     @PostMapping(params = ["create"])
     fun createUploadTicket(@PathVariable bucketName: String, @PathVariable objectName: String): ResponseEntity<String>{
@@ -41,7 +45,6 @@ class ObjectController @Autowired constructor(
 
     @DeleteMapping(params=["delete"])
     fun deleteObject(@PathVariable bucketName: String, @PathVariable objectName: String): ResponseEntity<String>{
-        //TODO Check to see if bucketname-objectname is valid
         if(!(BucketFileManager.bucketNameValid(bucketName) && ObjectFileManager.objectNameIsValid(objectName))) return ResponseEntity(HttpStatus.BAD_REQUEST)
         objectManager.deleteObject(bucketName,objectName)
         ticketManager.deleteTicket(bucketName, objectName)
@@ -50,6 +53,7 @@ class ObjectController @Autowired constructor(
 
     @PutMapping(params=["metadata","key"])
     fun putMetadataKey(@PathVariable bucketName: String, @PathVariable objectName: String, @RequestParam key: String, @RequestBody metadata: String): ResponseEntity<String>{
+        logger.info("Putting metadata: $key for object: $bucketName/$objectName")
         return try {
             objectManager.setMetaData(bucketName, objectName, key, metadata)
             ResponseEntity(HttpStatus.OK)
@@ -60,6 +64,7 @@ class ObjectController @Autowired constructor(
 
     @DeleteMapping(params=["metadata","key"])
     fun deleteMetadataKey(@PathVariable bucketName: String, @PathVariable objectName: String, @RequestParam key: String): ResponseEntity<String>{
+        logger.info("Deleting metadata: $key for object: $bucketName/$objectName")
         return try{
             objectManager.deleteMetadataByKey(bucketName, objectName, key)
             ResponseEntity(HttpStatus.OK)
@@ -71,7 +76,7 @@ class ObjectController @Autowired constructor(
     @GetMapping(params=["metadata","key"])
     fun getMetadataByKey(@PathVariable bucketName: String, @PathVariable objectName: String, @RequestParam key: String): ResponseEntity<Any>{
         return try{
-            val data = objectManager.getMetadataKey(bucketName, objectName, key)
+            val data = objectManager.getMetadataByKeyJson(bucketName, objectName, key)
             ResponseEntity(data,HttpStatus.OK)
         }catch(e: MetadataNotFoundException){
             ResponseEntity("{}",HttpStatus.OK)

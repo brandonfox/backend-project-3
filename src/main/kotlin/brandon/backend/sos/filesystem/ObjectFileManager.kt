@@ -1,21 +1,17 @@
 package brandon.backend.sos.filesystem
 
 import brandon.backend.sos.database.entities.FileObject
-import brandon.backend.sos.database.entities.ObjectMetadataKey
 import brandon.backend.sos.database.entities.ObjectMetadataPair
-import brandon.backend.sos.database.repositories.ObjectMetadataRepo
 import brandon.backend.sos.database.repositories.ObjectRepo
 import brandon.backend.sos.filesystem.errors.MetadataNotFoundException
 import javassist.NotFoundException
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Component
-import java.io.File
 import java.io.IOException
 
 @Component
 class ObjectFileManager @Autowired constructor(
-        val objectRepo: ObjectRepo,
-        val metaDataRepo: ObjectMetadataRepo
+        val objectRepo: ObjectRepo
 ) : FileManager() {
 
     companion object{
@@ -35,20 +31,31 @@ class ObjectFileManager @Autowired constructor(
 
     fun getMetadataKey(bucketName: String,objectName: String,key: String): ObjectMetadataPair{
         val fileObject = getObject(bucketName, objectName)
-        val data = metaDataRepo.findById(ObjectMetadataKey(fileObject, key))
-        return if(data.isPresent) data.get() else throw MetadataNotFoundException()
+        fileObject.metadata.forEach {
+            if(it.metadataKey == key){
+                return it
+            }
+        }
+        throw MetadataNotFoundException()
+    }
+
+    fun getMetadataByKeyJson(bucketName: String,objectName: String,key: String): String{
+        val jsonNode = objectMapper.createObjectNode()
+        val metadata = getMetadataKey(bucketName, objectName, key)
+        jsonNode.put(key,metadata.value)
+        return jsonNode.toPrettyString()
     }
 
     fun getAllMetadata(bucketName: String,objectName: String): List<ObjectMetadataPair>{
         val fileObject = getObject(bucketName, objectName)
-        return metaDataRepo.findAllByObjectKeyPair_FileObject(fileObject)
+        return fileObject.metadata.toList()
     }
 
     fun getAllMetadataJson(bucketName: String, objectName: String): String {
         val data = getAllMetadata(bucketName, objectName)
         val jsonNode = objectMapper.createObjectNode()
         data.forEach {
-            jsonNode.put(it.objectKeyPair!!.metadataKey,it.value)
+            jsonNode.put(it.metadataKey,it.value)
         }
         return jsonNode.toPrettyString()
     }
@@ -60,13 +67,19 @@ class ObjectFileManager @Autowired constructor(
 
     fun setMetaData(bucketName: String,objectName: String,key: String, value: String){
         val fileObject = getObject(bucketName, objectName)
-        val metaData = ObjectMetadataPair(fileObject,key,value)
-        metaDataRepo.saveAndFlush(metaData)
+        val metaData = ObjectMetadataPair(key,value)
+        fileObject.metadata = fileObject.metadata.plus(metaData)
+        objectRepo.saveAndFlush(fileObject)
     }
 
     fun deleteMetadataByKey(bucketName: String, objectName: String, key: String){
-        val data = getMetadataKey(bucketName, objectName, key)
-        metaDataRepo.delete(data)
+        val fileObject = getObject(bucketName, objectName)
+        fileObject.metadata.forEach {
+            if(it.metadataKey == key){
+                fileObject.metadata = fileObject.metadata.minus(it)
+                return
+            }
+        }
     }
 
     fun deleteObject(bucketName: String,objectName: String){

@@ -2,6 +2,7 @@ package brandon.backend.sos
 
 import org.apache.http.client.methods.HttpPut
 import org.apache.http.entity.ContentType
+import org.apache.http.entity.StringEntity
 import org.apache.http.entity.mime.MultipartEntityBuilder
 import org.apache.http.impl.client.HttpClients
 import org.junit.jupiter.api.BeforeAll
@@ -9,6 +10,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.springframework.boot.test.context.SpringBootTest
 import java.io.File
+import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
@@ -31,84 +33,96 @@ class SosApplicationTests {
 
 	@Test
 	fun bucketTest() {
-
-		try {
-			createBucket("test")
-		}
-		catch(e:Exception){
-			assert(false) { "Could not create bucket, ${e.message}" }
-		}
-		try {
-			createBucket("test")
-			assert(false) { "Should not be able to create bucket" }
-		}catch(e:Exception){
-		}
-		try {
-			createBucket(".test")
-			assert(false) { "Should not be able to create bucket" }
-		}catch(e:Exception){
-		}
-
-		try{
-			val listReq = sendRequest("GET","/test?list")
-			println(listReq)
-			assert(listReq.contains("\"name\"\\s*:\\s*\"test\"".toRegex()))
-		}
-		catch(e:Exception){
-			assert(false)
-		}
-
-		try {
-			val deleteBucket = sendRequest("DELETE", "/test?delete")
-			println(deleteBucket)
-		}catch(e: Exception){
-			assert(false)
-		}
+		deleteBucket("test")
+		createBucket("test",true,"Should be able to create bucket")
+		createBucket("test",false,"Shouldnt be able to create duplicate bucket")
+		createBucket("test",false,"Shouldnt be able to create bucket with invalid name")
+		createBucket("test",false,"Shouldnt be able to create bucket with invalid name")
 	}
 
-	fun createBucket(bucketName: String){
-		val createResp = sendRequest("POST", "/${bucketName}?create")
-		println(createResp)
-		assert(createResp.contains("\"name\"\\s*:\\s*\"${bucketName}\"".toRegex()))
+	fun deleteBucket(bucketName: String){
+		try {
+			sendRequest("DELETE", "/$bucketName?delete")
+		}catch(e:Exception){}
+	}
+
+	fun createBucket(bucketName: String, shouldSuccess: Boolean, errormsg: String = ""){
+		if(shouldSuccess)
+			sendRequest("POST","/$bucketName?create",shouldSuccess,errormsg,{it.contains("\"name\"\\s*:\\s*\"${bucketName}\"".toRegex())})
+		else
+			sendRequest("POST","/$bucketName?create",shouldSuccess,errormsg)
+	}
+
+	fun createTicket(bucketName: String,objectName: String, shouldSuccess: Boolean, errormsg: String){
+		sendRequest("POST","/$bucketName/$objectName?create",shouldSuccess = shouldSuccess,errormsg = errormsg)
 	}
 
 	@Test
 	fun ticketTest(){
-		createBucket("test")
-
-		try{
-			val createTicket = sendRequest("POST","/test/test.pdf?create")
-		}catch(e: Exception){assert(false) { "Should be able to create a ticket" }}
-		try{
-			val createTicket = sendRequest("POST","/test/test.pdf?create")
-			assert(false){ "Shouldn't be able to create a duplicate ticket" }
-		}catch(e: Exception){}
-		try{
-			val createTicket = sendRequest("POST","/test121/test.pdf?create")
-			assert(false) { "Shouldn't be able to create a ticket for an object that doesn't exist" }
-		}catch(e: Exception){}
-		try{
-			val createTicket = sendRequest("POST","/test/.test.pdf.?create")
-			assert(false) { "Shouldn't be able to create a ticket for an invalid object name" }
-		}catch(e: Exception){}
-
+		deleteBucket("test")
+		createBucket("test",true,"Should be able to create bucket")
+		createTicket("test","test.pdf",true,"Should be able to create a ticket")
+		createTicket("test","test.pdf",false,"Shouldn't be able to create a duplicate ticket")
+		createTicket("test121","test.pdf",false,"Shouldn't be able to create a ticket for an object that doesn't exist")
 		val file1 = File("src/main/resources/xaa")
 		val file2 = File("src/main/resources/xab")
 		val file3 = File("src/main/resources/test")
-		uploadFile(file1,"/test/test.pdf",1)
-		uploadFile(file2,"/test/test.pdf",2)
-		uploadFile(file3,"/test/test.pdf",3)
-		try{
-			val completeTicket = sendRequest("POST","/test/test.pdf?complete")
-			println(completeTicket)
-		}catch(e: Exception){
-			assert(false){"Shouldve been able to complete ticket: ${e.message}"}
+		createObject("test","test.pdf",false,file1,file2,file3)
+		sendRequest("GET","/test?list",shouldSuccess = true,errormsg = "Should be able to retrieve bucket 'test'",assertFunction = {it.contains("test.pdf")})
+		sendRequest("DELETE","/test/test.pdf?delete",true,"Should be able to delete object")
+		sendRequest("GET","/test?list",true,"Object should no longer show up in bucket",{!it.contains("test.pdf")})
+	}
+
+	@Test
+	fun objectDownloadTest(){
+		deleteBucket("test")
+		createBucket("test",true,"Should be able to create bucket")
+		val file1 = File("src/main/resources/xaa")
+		val file2 = File("src/main/resources/xab")
+		createObject("test","test.pdf",true,file1,file2)
+		val file = File("src/main/resources/downloads/test.pdf")
+		file.createNewFile()
+		downloadFile("test","test.pdf",file)
+		assert(file.length() > 5000)
+	}
+
+	fun createObject(bucketName: String,objectName: String,createTicket: Boolean = true,vararg files: File){
+		if(createTicket)
+			createTicket(bucketName,objectName,true,"Should be able to create ticket")
+		files.forEachIndexed  { i,f -> run { uploadFile(f, "/$bucketName/$objectName", i+1) } }
+		sendRequest("POST","/$bucketName/$objectName?complete",shouldSuccess = true,errormsg = "Should've been able to complete ticket")
+	}
+
+	@Test
+	fun metadataTest(){
+		deleteBucket("test")
+		createBucket("test",true,"Should be able to create bucket")
+		val file1 = File("src/main/resources/xaa")
+		val file2 = File("src/main/resources/xab")
+		createObject("test","test.pdf",true,file1,file2)
+		putMetadata("test","test.pdf","origin","Spring JUnit test")
+
+	}
+
+	fun downloadFile(bucketName: String,objectName: String,file: File){
+		val u = URL("$url/$bucketName/$objectName")
+		val fileStream = FileOutputStream(file)
+		with(u.openConnection() as HttpURLConnection){
+			requestMethod = "GET"
+
+			println(responseCode)
+			while(inputStream.available() > 0)
+				fileStream.write(inputStream.read())
 		}
-		try{
-			val buckets = sendRequest("GET","/test?list")
-			assert(buckets.contains("test.pdf"))
-		}
-		catch(e: Exception){assert(false){"Should be able to retrieve bucket 'test'"}}
+	}
+
+	fun putMetadata(bucketName: String,objectName: String,key: String, body: String): String{
+		val client = HttpClients.createDefault()
+		val put = HttpPut("$url/$bucketName/$objectName?metadata&key=$key")
+		val ent = StringEntity(body)
+		put.entity = ent
+		val respEnt = client.execute(put)
+		return respEnt.entity.content.reader().readText()
 	}
 
 	fun getMd5(file: File): String{
@@ -137,7 +151,7 @@ class SosApplicationTests {
 		println(response.content.reader().readText())
 	}
 
-	fun sendRequest(type: String, path: String, headers: Map<String,String>? = null): String{
+	fun sendRequest(type: String, path: String,body: String? = null,headers: Map<String,String>? = null): String{
 		val u = URL("$url$path")
 		with(u.openConnection() as HttpURLConnection){
 			requestMethod = type
@@ -146,7 +160,25 @@ class SosApplicationTests {
 					setRequestProperty(k,headers[k])
 				}
 			}
+			if(body != null){
+				doOutput = true
+				outputStream.writer().write(body)
+			}
+			println(responseCode)
 			return inputStream.reader().readText()
+		}
+	}
+	fun sendRequest(type: String, path: String, shouldSuccess: Boolean,errormsg: String, assertFunction: ((resp: String) -> Boolean)? = null,body: String? = null,headers: Map<String,String>? = null): String{
+		val asf: (resp: String) -> Boolean = assertFunction ?: {true}
+		return try{
+			val response = sendRequest(type,path,body,headers)
+			if(shouldSuccess) assert(asf(response)){errormsg}
+			else assert(false){errormsg}
+			response
+		}catch(e: Exception){
+			if(shouldSuccess) assert(false){"$errormsg:${e.message}"}
+			else assert(asf(e.message!!)){"$errormsg:${e.message}"}
+			e.message!!
 		}
 	}
 
