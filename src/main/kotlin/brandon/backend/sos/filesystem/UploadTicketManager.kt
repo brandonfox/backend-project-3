@@ -40,13 +40,14 @@ class UploadTicketManager @Autowired constructor(
 
     fun completeTicket(bucketName: String,objectName: String): FileObject {
         val ticket = getUploadTicket(bucketName, objectName)
+        if(ticket.noParts == 0) throw Exception("No file uploaded")
         if(ticket.parts.size != ticket.noParts) throw IOException("Upload has not yet completed: Parts uploaded: ${ticket.parts.size}, Expected parts: ${ticket.noParts}")
         val file = getFile("$bucketName/$objectName")
         if(file.exists()) throw IOException("File ${filePath}/$bucketName/$objectName already exists")
         val md = getMd5Digest()
         var totalSize: Long = 0
         ticket.parts.forEach {
-            md.digest(it.md5!!.toByteArray())
+            md.update(it.md5!!.toByteArray())
             totalSize += it.contentSize!!
         }
         val chksum = getMd5Hash(md)

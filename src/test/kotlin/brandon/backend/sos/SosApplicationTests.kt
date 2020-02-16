@@ -3,20 +3,12 @@ package brandon.backend.sos
 import org.apache.http.client.methods.HttpPut
 import org.apache.http.entity.ContentType
 import org.apache.http.entity.mime.MultipartEntityBuilder
-import org.apache.http.impl.client.HttpClientBuilder
 import org.apache.http.impl.client.HttpClients
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.http.HttpEntity
-import org.springframework.http.HttpHeaders
-import org.springframework.http.MediaType
-import org.springframework.util.LinkedMultiValueMap
-import org.springframework.util.MultiValueMap
-import org.springframework.web.client.RestTemplate
 import java.io.File
-import java.io.FileInputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
@@ -82,27 +74,43 @@ class SosApplicationTests {
 		createBucket()
 
 		try{
-			val createTicket = sendRequest("POST","/test/test?create")
+			val createTicket = sendRequest("POST","/test/test.pdf?create")
 			assert(true)
 		}catch(e: Exception){assert(false)}
 
-		val file = File("src/main/resources/Thomas H. Cormen, Charles E. Leiserson, Ronald L. Rivest, Clifford Stein - Introduction to Algorithms-MIT Press (2009).pdf")
-		uploadFile(file,"/test/test",1)
+		val file1 = File("src/main/resources/xaa")
+		val file2 = File("src/main/resources/xab")
+		val file3 = File("src/main/resources/test")
+		uploadFile(file1,"/test/test.pdf",1)
+		uploadFile(file2,"/test/test.pdf",2)
+		uploadFile(file3,"/test/test.pdf",3)
+		try{
+			val completeTicket = sendRequest("POST","/test/test.pdf?complete")
+			println(completeTicket)
+		}catch(e: Exception){
+			assert(false){"Shouldve been able to complete ticket: ${e.message}"}
+		}
 	}
 
 	fun getMd5(file: File): String{
 		val md = MessageDigest.getInstance("MD5")
-		file.forEachLine { md.digest(it.toByteArray()) }
+		md.reset()
+		val inputStream = file.inputStream()
+		while(inputStream.available() > 0){
+			md.update(inputStream.readBytes())
+		}
 		return DatatypeConverter.printHexBinary(md.digest()).toUpperCase()
 	}
 
 	fun uploadFile(file: File,path: String,partNo: Int){
 		val md5 = getMd5(file)
+		println("Md5 for file: ${file.name} is $md5")
 		val client = HttpClients.createDefault()
 		val put = HttpPut("$url$path?partNumber=$partNo")
-		put.addHeader("Content-MD5",md5)
+		put.setHeader("Content-MD5",md5)
+		put.allHeaders.forEach { println(it) }
 		val builder = MultipartEntityBuilder.create()
-		builder.addBinaryBody("file", file, ContentType.MULTIPART_FORM_DATA,file.name)
+		builder.addBinaryBody("file", file, ContentType.APPLICATION_OCTET_STREAM,file.name)
 		val multipart = builder.build()
 		put.entity = multipart
 		val resp = client.execute(put)

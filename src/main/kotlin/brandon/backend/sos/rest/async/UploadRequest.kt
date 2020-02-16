@@ -30,14 +30,17 @@ class UploadRequest constructor(
 
     private val fileStream = file.outputStream()
 
+    init {
+        md5.reset()
+    }
+
     override fun hasMoreData(): Boolean {
         return input.available() > 0
     }
 
     override fun readData(): ByteArray {
-        val byteArray = ByteArray(bufferSize)
-        input.read(byteArray)
-        md5.digest(byteArray)
+        val byteArray = input.readBytes()
+        md5.update(byteArray)
         return byteArray
     }
 
@@ -54,7 +57,9 @@ class UploadRequest constructor(
                 val partNumber = partNo
                 val error = "Invalid checksum"
             }
+            logger.info("Invalid checksum: Got {$chkmd5}, expected {$chksum}")
             result.setResult(ResponseEntity(retObj,HttpStatus.BAD_REQUEST))
+            return
         }
         val fileParts = FilePart(partName,ticket,chkmd5,size)
         fileTicketManager.addPart(fileParts,ticket,partNo)
