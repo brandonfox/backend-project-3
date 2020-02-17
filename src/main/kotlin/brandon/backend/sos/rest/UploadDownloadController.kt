@@ -2,6 +2,8 @@ package brandon.backend.sos.rest
 
 import brandon.backend.sos.filesystem.ObjectDownloadManager
 import brandon.backend.sos.filesystem.ObjectFileManager
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.async
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
@@ -60,21 +62,22 @@ class UploadDownloadController @Autowired constructor(
     fun downloadObject(@PathVariable objectName: String, @PathVariable bucketName: String, @RequestHeader(required = false) range:String? = null,  response: HttpServletResponse): DeferredResult<ResponseEntity<Any>>{
         logger.info("Got request to download file $bucketName/$objectName")
         val future = DeferredResult<ResponseEntity<Any>>()
-        return try {
-            response.setHeader("Content-Disposition", "attachment; filename=$objectName")
-            if(range != null)
-                response.setContentLength(getRangeContentSize(range))
-            else
-                response.setContentLengthLong(objectManager.getObjectFileSize(bucketName, objectName))
-            response.contentType = MediaType.APPLICATION_OCTET_STREAM_VALUE
-            val outputStream = response.outputStream
-            downloadManager.downloadToStream(bucketName, objectName, outputStream, future,range)
-            future
+        GlobalScope.async { // For some reason needs this???? Otherwise hikari pools arent freed
+            try {
+                response.setHeader("Content-Disposition", "attachment; filename=$objectName")
+                if(range != null)
+                    response.setContentLength(getRangeContentSize(range))
+                else
+                    response.setContentLengthLong(objectManager.getObjectFileSize(bucketName, objectName))
+                response.contentType = MediaType.APPLICATION_OCTET_STREAM_VALUE
+                val outputStream = response.outputStream
+                downloadManager.downloadToStream(bucketName, objectName, outputStream, future,range)
+            }
+            catch(e: Exception){
+                future.setResult(ResponseEntity(HttpStatus.NOT_FOUND))
+            }
         }
-        catch(e: Exception){
-            future.setResult(ResponseEntity(HttpStatus.NOT_FOUND))
-            future
-        }
+        return future
     }
 
     @DeleteMapping(params = ["{partNumber}"])

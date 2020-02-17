@@ -1,5 +1,6 @@
 package brandon.backend.sos
 
+import kotlinx.coroutines.*
 import org.apache.http.client.methods.HttpPut
 import org.apache.http.entity.ContentType
 import org.apache.http.entity.StringEntity
@@ -11,6 +12,7 @@ import org.junit.jupiter.api.TestInstance
 import org.springframework.boot.test.context.SpringBootTest
 import java.io.File
 import java.io.FileOutputStream
+import java.io.PushbackInputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
@@ -40,21 +42,30 @@ class SosApplicationTests {
 		createBucket("test",false,"Shouldnt be able to create bucket with invalid name")
 	}
 
-	fun deleteBucket(bucketName: String){
-		try {
-			sendRequest("DELETE", "/$bucketName?delete")
-		}catch(e:Exception){}
-	}
-
-	fun createBucket(bucketName: String, shouldSuccess: Boolean, errormsg: String = ""){
-		if(shouldSuccess)
-			sendRequest("POST","/$bucketName?create",shouldSuccess,errormsg,{it.contains("\"name\"\\s*:\\s*\"${bucketName}\"".toRegex())})
-		else
-			sendRequest("POST","/$bucketName?create",shouldSuccess,errormsg)
-	}
-
-	fun createTicket(bucketName: String,objectName: String, shouldSuccess: Boolean, errormsg: String){
-		sendRequest("POST","/$bucketName/$objectName?create",shouldSuccess = shouldSuccess,errormsg = errormsg)
+	@Test
+	fun metadataTest(){
+		deleteBucket("test")
+		createBucket("test",true,"Should be able to create bucket")
+		val file1 = File("src/main/resources/xaa")
+		val file2 = File("src/main/resources/xab")
+		createObject("test","test.pdf",true,file1,file2)
+		putMetadata("test","test.pdf","origin","Spring JUnit test")
+		sendRequest("GET","/test/test.pdf?metadata",true,"Should be able to retrieve metadata",{ it.contains("\"origin\"\\s*:\\s*\"Spring JUnit test\"".toRegex())})
+		putMetadata("test","test.pdf","second","waow")
+		sendRequest("GET","/test/test.pdf?metadata",true,"Should contain 2 metadata fields",{
+			it.contains("\"origin\"\\s*:\\s*\"Spring JUnit test\"".toRegex())
+					&& it.contains("\"second\"\\s*:\\s*\"waow\"".toRegex())
+		})
+		sendRequest("GET","/test/test.pdf?metadata&key=origin",true,"Should only contain origin field",{
+			it.contains("\"origin\"\\s*:\\s*\"Spring JUnit test\"".toRegex())
+					&& !it.contains("\"second\"\\s*:\\s*\"waow\"".toRegex())
+		})
+		sendRequest("DELETE","/test/test.pdf?metadata&key=second",true,"Should be able to delete metadata")
+		sendRequest("GET","/test/test.pdf?metadata",true,"Should only contain origin field",{
+			println(it)
+			it.contains("\"origin\"\\s*:\\s*\"Spring JUnit test\"".toRegex())
+					&& !it.contains("\"second\"\\s*:\\s*\"waow\"".toRegex())
+		})
 	}
 
 	@Test
@@ -82,8 +93,72 @@ class SosApplicationTests {
 		createObject("test","test.pdf",true,file1,file2)
 		val file = File("src/main/resources/downloads/test.pdf")
 		file.createNewFile()
-		downloadFile("test","test.pdf",file)
-		assert(file.length() > 5000)
+		runBlocking {
+			downloadFile("test", "test.pdf", file)
+		}
+		assert(file.length() - file1.length() - file2.length() < 20000) {"File length was ${file.length()}. Should've been ${file1.length() + file2.length()}"}
+	}
+
+	val noDownloads = 20
+
+	@Test
+	fun downloadPerformanceTest(){
+		deleteBucket("test")
+		createBucket("test",true,"Should be able to create bucket")
+		val file1 = File("src/main/resources/xaa")
+		val file2 = File("src/main/resources/xab")
+		createObject("test","test.pdf",true,file1,file2)
+		bytesRead = 0
+		runningDownloads = noDownloads
+		start = System.currentTimeMillis()
+		for(i in 0 until noDownloads){
+			GlobalScope.async {
+				try {
+					val f = File("src/main/resources/downloads/test$i.pdf")
+					f.createNewFile()
+					downloadFile("test", "test.pdf", f) { addByte() }
+				}catch(e: Exception){}
+			}.invokeOnCompletion { completeDownload(i) }
+		}
+		runBlocking { while(runningDownloads > 0) delay(100) }
+
+	}
+	var runningDownloads = 0
+	var bytesRead = 0
+	var start = 0L
+
+	@Synchronized
+	fun completeDownload(i: Int){
+		runningDownloads--
+		println("Download completes: $runningDownloads downloads still pending")
+		val file = File("src/main/resources/downloads/test$i.pdf")
+		assert(file.length() - 1000*1000*5.7 < 100000) {"File length was ${file.length()}. Should've been ${1000 * 1000 * 5.7}"}
+		if(runningDownloads == 0){
+			val end = System.currentTimeMillis()
+			println("300 downloads took ${end - start} milliseconds. Bytes per second: ${bytesRead * 1000 / (end - start)}")
+		}
+	}
+
+	@Synchronized
+	fun addByte(){
+		bytesRead++
+	}
+
+	fun deleteBucket(bucketName: String){
+		try {
+			sendRequest("DELETE", "/$bucketName?delete")
+		}catch(e:Exception){}
+	}
+
+	fun createBucket(bucketName: String, shouldSuccess: Boolean, errormsg: String = ""){
+		if(shouldSuccess)
+			sendRequest("POST","/$bucketName?create",shouldSuccess,errormsg,{it.contains("\"name\"\\s*:\\s*\"${bucketName}\"".toRegex())})
+		else
+			sendRequest("POST","/$bucketName?create",shouldSuccess,errormsg)
+	}
+
+	fun createTicket(bucketName: String,objectName: String, shouldSuccess: Boolean, errormsg: String){
+		sendRequest("POST","/$bucketName/$objectName?create",shouldSuccess = shouldSuccess,errormsg = errormsg)
 	}
 
 	fun createObject(bucketName: String,objectName: String,createTicket: Boolean = true,vararg files: File){
@@ -93,41 +168,19 @@ class SosApplicationTests {
 		sendRequest("POST","/$bucketName/$objectName?complete",shouldSuccess = true,errormsg = "Should've been able to complete ticket")
 	}
 
-	@Test
-	fun metadataTest(){
-		deleteBucket("test")
-		createBucket("test",true,"Should be able to create bucket")
-		val file1 = File("src/main/resources/xaa")
-		val file2 = File("src/main/resources/xab")
-		createObject("test","test.pdf",true,file1,file2)
-		putMetadata("test","test.pdf","origin","Spring JUnit test")
-		sendRequest("GET","/test/test.pdf?metadata",true,"Should be able to retrieve metadata",{ it.contains("\"origin\"\\s*:\\s*\"Spring JUnit test\"".toRegex())})
-		putMetadata("test","test.pdf","second","waow")
-		sendRequest("GET","/test/test.pdf?metadata",true,"Should contain 2 metadata fields",{
-			it.contains("\"origin\"\\s*:\\s*\"Spring JUnit test\"".toRegex())
-					&& it.contains("\"second\"\\s*:\\s*\"waow\"".toRegex())
-		})
-		sendRequest("GET","/test/test.pdf?metadata&key=origin",true,"Should only contain origin field",{
-			it.contains("\"origin\"\\s*:\\s*\"Spring JUnit test\"".toRegex())
-					&& !it.contains("\"second\"\\s*:\\s*\"waow\"".toRegex())
-		})
-		sendRequest("DELETE","/test/test.pdf?metadata&key=second",true,"Should be able to delete metadata")
-		sendRequest("GET","/test/test.pdf?metadata",true,"Should only contain origin field",{
-			println(it)
-			it.contains("\"origin\"\\s*:\\s*\"Spring JUnit test\"".toRegex())
-					&& !it.contains("\"second\"\\s*:\\s*\"waow\"".toRegex())
-		})
-	}
-
-	fun downloadFile(bucketName: String,objectName: String,file: File){
+	suspend fun downloadFile(bucketName: String,objectName: String,file: File, whileReadFunction: ((b: Int) -> Unit)? = null){
 		val u = URL("$url/$bucketName/$objectName")
-		val fileStream = FileOutputStream(file)
+		val fileStream = file.outputStream()
 		with(u.openConnection() as HttpURLConnection){
 			requestMethod = "GET"
 
 			println(responseCode)
-			while(inputStream.available() > 0)
-				fileStream.write(inputStream.read())
+			while(true) {
+				val read = inputStream.read()
+				if(read == -1) break
+				if(whileReadFunction != null) whileReadFunction(read)
+				fileStream.write(read)
+			}
 		}
 	}
 

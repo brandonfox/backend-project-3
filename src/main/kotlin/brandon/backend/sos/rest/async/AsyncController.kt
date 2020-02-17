@@ -14,7 +14,7 @@ object AsyncController {
     private val threadIdQueue = PriorityBlockingQueue<Int>()
     val asyncThreadRequests = HashMap<Int,BlockingQueue<Request>>()
 
-    var lastAddedThread = 1
+    private var lastAddedThread = 1
 
     init {
         for(i in 1 until noThreads + 1){
@@ -26,6 +26,7 @@ object AsyncController {
 
     fun addRequest(request: Request){
         asyncThreadRequests[lastAddedThread]!!.add(request)
+        logger.info("Adding request to thread $lastAddedThread queue")
         lastAddedThread = (lastAddedThread % noThreads) + 1
     }
 
