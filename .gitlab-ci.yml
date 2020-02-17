@@ -6,6 +6,6 @@ services:
 deploy:
   stage: deploy
   script:
-    - docker login -u brandonfox -p $gitlab_password registry.gitlab.com
+    - docker login -u brandonfox -p $gitlabPassword registry.gitlab.com
     - docker build -t registry.gitlab.com/brandonfox/backend-project-3 .
     - docker push registry.gitlab.com/brandonfox/backend-project-3
