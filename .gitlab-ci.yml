@@ -1,0 +1,11 @@
+image: docker/compose:latest
+
+services:
+  - docker:dind
+
+deploy:
+  stage: deploy
+  script:
+    - docker login -u brandonfox -p $gitlab-password registry.gitlab.com
+    - docker build -t registry.gitlab.com/brandonfox/backend-project-3 .
+    - docker push registry.gitlab.com/brandonfox/backend-project-3
